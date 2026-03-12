@@ -1,0 +1,45 @@
+name: Yupp Auto Update
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:      
+  push:
+    paths:
+      - 'yupp.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        run: |
+          sudo apt update
+          sudo apt install -y p7zip-full
+          pip install requests
+
+      - name: Run
+        run: |
+          mkdir -p tmp_script
+          7z x yupp.zip -p"${{ secrets.ZIP_PASSWORD }}" -y -otmp_script
+          python3 tmp_script/yupp.py
+          rm -rf tmp_script
+
+      - name: Push
+        run: |
+          git config --global user.name "Asim Dipto"
+          git config --global user.email "asimdipto@github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No change detected."
+          else
+            git commit -m "Auto Sync: $(date +'%H:%M:%S') [skip ci]"
+            git pull origin main --rebase
+            git push origin main
+          fi
